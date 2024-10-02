@@ -96,7 +96,7 @@ def client(peer_ip):
     global clipboard_history
     try:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.settimeout(5.0)  # Set timeout for connection attempt
+        client_socket.settimeout(10.0)  # Set timeout for connection attempt
         client_socket.connect((peer_ip, PORT))
         print(colored(f"\n[+] Connected to {peer_ip}", 'green'))
 
@@ -123,12 +123,13 @@ def client(peer_ip):
                     else:
                         print(colored("\n[!] Clipboard content hasn't changed since last fetch.\n", 'yellow'))
 
-                    # Display clipboard history
+                    # Display clipboard history (truncate content to 100 characters)
                     print(colored("\n┌" + "─" * 70 + "┐", 'magenta'))
                     print(colored("│" + "[ Clipboard History ]".center(70) + "│", 'magenta'))
                     print(colored("├" + "─" * 70 + "┤", 'magenta'))
                     for idx, content in enumerate(clipboard_history, start=1):
-                        content_lines = [content[i:i+66] for i in range(0, len(content), 66)]
+                        truncated_content = (content[:97] + '...') if len(content) > 100 else content
+                        content_lines = [truncated_content[i:i+66] for i in range(0, len(truncated_content), 66)]
                         for line_num, line in enumerate(content_lines):
                             if line_num == 0:
                                 line_prefix = f"{idx}. "
