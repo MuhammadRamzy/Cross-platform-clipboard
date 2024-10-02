@@ -1,12 +1,13 @@
 import socket
 import threading
 import pyperclip
-import argparse
 from termcolor import colored
 import os
 import platform
 import shutil
 from pyfiglet import Figlet
+import sys
+import time
 
 # Configuration
 PORT = 65432  # Port to use for communication
@@ -14,37 +15,65 @@ PORT = 65432  # Port to use for communication
 # Store clipboard history (local)
 clipboard_history = []
 
+def get_local_ip():
+    """Fetches the local IP address of this machine."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Doesn't need to reach the address, just to get the local IP
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
 def handle_client(conn, addr):
     """Server handler to respond to clipboard requests."""
-    global clipboard_history
     print(colored(f"[+] Connected by {addr}", 'green'))
-    while True:
-        data = conn.recv(1024).decode()
-        if not data:
-            break
-        elif data == 'get_clipboard':
-            clipboard_content = pyperclip.paste()
-            clipboard_history.append(clipboard_content)
-            conn.sendall(clipboard_content.encode())
-        else:
-            conn.sendall(b"Invalid command")
-    conn.close()
-    print(colored(f"[-] Disconnected from {addr}", 'yellow'))
+    try:
+        while True:
+            data = conn.recv(1024)
+            if not data:
+                break
+            command = data.decode()
+            if command == 'get_clipboard':
+                try:
+                    clipboard_content = pyperclip.paste()
+                except Exception as e:
+                    clipboard_content = f"Error accessing clipboard: {e}"
+                try:
+                    conn.sendall(clipboard_content.encode())
+                except Exception as e:
+                    print(colored(f"[-] Error sending data to {addr}: {e}", 'red'))
+            else:
+                conn.sendall(b"Invalid command")
+    except Exception as e:
+        print(colored(f"[-] Error handling client {addr}: {e}", 'red'))
+    finally:
+        conn.close()
+        print(colored(f"[-] Disconnected from {addr}", 'yellow'))
 
 def server(local_ip, stop_event):
     """Runs a server to listen for clipboard requests."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-        server_socket.bind((local_ip, PORT))
-        server_socket.listen()
-        print(colored(f"[*] Server listening on {local_ip}:{PORT}...", 'cyan'))
-        server_socket.settimeout(1.0)
-        while not stop_event.is_set():
-            try:
-                conn, addr = server_socket.accept()
-                client_thread = threading.Thread(target=handle_client, args=(conn, addr))
-                client_thread.start()
-            except socket.timeout:
-                continue
+        try:
+            server_socket.bind((local_ip, PORT))
+            server_socket.listen()
+            print(colored(f"[*] Server listening on {local_ip}:{PORT}...", 'cyan'))
+            server_socket.settimeout(1.0)
+            while not stop_event.is_set():
+                try:
+                    conn, addr = server_socket.accept()
+                    client_thread = threading.Thread(target=handle_client, args=(conn, addr))
+                    client_thread.start()
+                except socket.timeout:
+                    continue
+                except Exception as e:
+                    print(colored(f"[-] Server error: {e}", 'red'))
+        except Exception as e:
+            print(colored(f"[-] Failed to start server: {e}", 'red'))
+            sys.exit(1)
 
 def clear_screen():
     """Clears the terminal screen."""
@@ -67,6 +96,7 @@ def client(peer_ip):
     global clipboard_history
     try:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.settimeout(5.0)  # Set timeout for connection attempt
         client_socket.connect((peer_ip, PORT))
         print(colored(f"\n[+] Connected to {peer_ip}", 'green'))
 
@@ -84,33 +114,47 @@ def client(peer_ip):
                 print(colored("└" + "─" * 70 + "┘\n", 'cyan'))
 
             elif command == 'show':
-                client_socket.sendall(b'get_clipboard')
-                clipboard_content = client_socket.recv(4096).decode()
-                clipboard_history.append(clipboard_content)
-                print(colored("\n┌" + "─" * 70 + "┐", 'magenta'))
-                print(colored("│" + "[ Clipboard History ]".center(70) + "│", 'magenta'))
-                print(colored("├" + "─" * 70 + "┤", 'magenta'))
-                for idx, content in enumerate(clipboard_history, start=1):
-                    content_lines = [content[i:i+66] for i in range(0, len(content), 66)]
-                    for line_num, line in enumerate(content_lines):
-                        if line_num == 0:
-                            line_prefix = f"{idx}. "
-                        else:
-                            line_prefix = "    "
-                        print(colored("│" + (line_prefix + line).ljust(70) + "│", 'magenta'))
-                print(colored("└" + "─" * 70 + "┘\n", 'magenta'))
+                try:
+                    client_socket.sendall(b'get_clipboard')
+                    clipboard_content = client_socket.recv(4096).decode()
+                    if not clipboard_history or clipboard_content != clipboard_history[-1]:
+                        clipboard_history.append(clipboard_content)
+                        print(colored("\n[+] New clipboard content added to history.\n", 'green'))
+                    else:
+                        print(colored("\n[!] Clipboard content hasn't changed since last fetch.\n", 'yellow'))
+
+                    # Display clipboard history
+                    print(colored("\n┌" + "─" * 70 + "┐", 'magenta'))
+                    print(colored("│" + "[ Clipboard History ]".center(70) + "│", 'magenta'))
+                    print(colored("├" + "─" * 70 + "┤", 'magenta'))
+                    for idx, content in enumerate(clipboard_history, start=1):
+                        content_lines = [content[i:i+66] for i in range(0, len(content), 66)]
+                        for line_num, line in enumerate(content_lines):
+                            if line_num == 0:
+                                line_prefix = f"{idx}. "
+                            else:
+                                line_prefix = "    "
+                            print(colored("│" + (line_prefix + line).ljust(70) + "│", 'magenta'))
+                    print(colored("└" + "─" * 70 + "┘\n", 'magenta'))
+                except Exception as e:
+                    print(colored(f"[-] Error fetching clipboard content: {e}\n", 'red'))
 
             elif command.startswith('cp'):
                 try:
                     _, number = command.split()
                     index = int(number) - 1
                     if 0 <= index < len(clipboard_history):
-                        pyperclip.copy(clipboard_history[index])
-                        print(colored(f"\n[+] Copied clipboard entry {number} to local clipboard.\n", 'green'))
+                        try:
+                            pyperclip.copy(clipboard_history[index])
+                            print(colored(f"\n[+] Copied clipboard entry {number} to local clipboard.\n", 'green'))
+                        except Exception as e:
+                            print(colored(f"[-] Error copying to clipboard: {e}\n", 'red'))
                     else:
                         print(colored("[-] Invalid number. Please try again.\n", 'red'))
-                except (ValueError, IndexError):
+                except ValueError:
                     print(colored("[-] Invalid command format. Use 'cp <number>'.\n", 'red'))
+                except Exception as e:
+                    print(colored(f"[-] An error occurred: {e}\n", 'red'))
 
             elif command == 'exit':
                 client_socket.close()
@@ -120,10 +164,17 @@ def client(peer_ip):
             else:
                 print(colored("[-] Unknown command. Type 'help' to see available commands.\n", 'yellow'))
 
+    except socket.timeout:
+        print(colored(f"[-] Connection timed out when connecting to {peer_ip}.", 'red'))
     except ConnectionRefusedError:
         print(colored(f"[-] Failed to connect to {peer_ip}. Is the server running?", 'red'))
     except Exception as e:
         print(colored(f"[-] An error occurred: {e}", 'red'))
+    finally:
+        try:
+            client_socket.close()
+        except:
+            pass
 
 def main():
     # Clear the terminal screen
@@ -132,14 +183,19 @@ def main():
     # Display the 'ClipMate' banner
     display_banner()
 
-    # Command-line argument parser
-    parser = argparse.ArgumentParser(description="Clipboard Sharing App")
-    parser.add_argument('--local-ip', type=str, required=True, help='Local IP address of this machine')
-    parser.add_argument('--peer-ip', type=str, required=True, help='IP address of the peer machine')
+    # Fetch the local IP address
+    local_ip = get_local_ip()
+    print(colored(f"[*] Your local IP address is {local_ip}", 'cyan'))
 
-    args = parser.parse_args()
-    local_ip = args.local_ip
-    peer_ip = args.peer_ip
+    # Prompt for the peer's IP address
+    peer_ip = input(colored("Enter the peer's IP address: ", 'yellow')).strip()
+
+    # Validate the IP address format
+    try:
+        socket.inet_aton(peer_ip)
+    except socket.error:
+        print(colored("[-] Invalid IP address format.", 'red'))
+        sys.exit(1)
 
     # Event to signal server shutdown
     stop_event = threading.Event()
@@ -149,6 +205,8 @@ def main():
     server_thread.start()
 
     try:
+        # Give the server a moment to start
+        time.sleep(0.5)
         # Run the client part
         client(peer_ip)
     except KeyboardInterrupt:
