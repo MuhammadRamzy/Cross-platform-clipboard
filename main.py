@@ -108,7 +108,7 @@ def client(peer_ip):
                 print(colored("│" + "Available Commands".center(70) + "│", 'cyan'))
                 print(colored("├" + "─" * 70 + "┤", 'cyan'))
                 print(colored("│" + "show           - Retrieve and display the peer's clipboard content.".ljust(70) + "│", 'cyan'))
-                print(colored("│" + "cp <number>    - Copy the specified clipboard entry to your local clipboard.".ljust(70) + "│", 'cyan'))
+                print(colored("│" + "cp <number>    - Copy specified clipboard entry to local clipboard.".ljust(70) + "│", 'cyan'))
                 print(colored("│" + "exit           - Exit the program.".ljust(70) + "│", 'cyan'))
                 print(colored("│" + "help           - Display this help message.".ljust(70) + "│", 'cyan'))
                 print(colored("└" + "─" * 70 + "┘\n", 'cyan'))
