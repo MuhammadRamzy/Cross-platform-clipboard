@@ -7,16 +7,10 @@ import os
 import platform
 import shutil
 from pyfiglet import Figlet
-from cryptography.fernet import Fernet
 
 # Configuration
 PORT = 65432  # Port to use for communication
 MAX_CLIPBOARD_LENGTH = 500  # Maximum length of clipboard content to store/display | truncate
-
-# Use a pre-shared key for encryption
-# Generate a key once using Fernet.generate_key() and use it in both client and server
-ENCRYPTION_KEY = b'YOUR_PRE_SHARED_KEY_HERE'
-cipher_suite = Fernet(ENCRYPTION_KEY)
 
 # Store clipboard history (local)
 clipboard_history = []
@@ -28,21 +22,21 @@ def handle_client(conn, addr):
     try:
         while True:
             try:
-                encrypted_data = conn.recv(4096)
-                if not encrypted_data:
+                data = conn.recv(4096).decode()
+                if not data:
                     break
-                data = cipher_suite.decrypt(encrypted_data).decode()
+
                 if data == 'get_clipboard':
                     clipboard_content = pyperclip.paste()
                     # Truncate if the clipboard content is too long
                     if len(clipboard_content) > MAX_CLIPBOARD_LENGTH:
                         clipboard_content = clipboard_content[:MAX_CLIPBOARD_LENGTH] + '... [truncated]'
                     clipboard_history.append(clipboard_content)
-                    encrypted_clipboard = cipher_suite.encrypt(clipboard_content.encode())
-                    conn.sendall(encrypted_clipboard)
+                    conn.sendall(clipboard_content.encode())
                 else:
                     response = "Invalid command"
-                    conn.sendall(cipher_suite.encrypt(response.encode()))
+                    conn.sendall(response.encode())
+
             except Exception as e:
                 print(colored(f"[-] An error occurred with {addr}: {e}", 'red'))
                 break
@@ -122,13 +116,11 @@ def client(peer_ip):
 
             elif command == 'show':
                 try:
-                    encrypted_command = cipher_suite.encrypt(command.encode())
-                    client_socket.sendall(encrypted_command)
-                    encrypted_clipboard = client_socket.recv(4096)
-                    if not encrypted_clipboard:
+                    client_socket.sendall(command.encode())
+                    clipboard_content = client_socket.recv(4096).decode()
+                    if not clipboard_content:
                         print(colored("[-] No response from the server.", 'red'))
                         continue
-                    clipboard_content = cipher_suite.decrypt(encrypted_clipboard).decode()
                     clipboard_history.append(clipboard_content)
                     print(colored("\n┌" + "─" * 70 + "┐", 'magenta'))
                     print(colored("│" + "[ Clipboard History ]".center(70) + "│", 'magenta'))
