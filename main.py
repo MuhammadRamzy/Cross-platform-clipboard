@@ -25,6 +25,7 @@ def handle_client(conn, addr):
                 data = conn.recv(4096).decode()
                 if not data:
                     break
+
                 if data == 'get_clipboard':
                     clipboard_content = pyperclip.paste()
                     # Truncate if the clipboard content is too long
@@ -35,6 +36,7 @@ def handle_client(conn, addr):
                 else:
                     response = "Invalid command"
                     conn.sendall(response.encode())
+
             except Exception as e:
                 print(colored(f"[-] An error occurred with {addr}: {e}", 'red'))
                 break
