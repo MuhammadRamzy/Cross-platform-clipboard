@@ -3,11 +3,21 @@ import threading
 import pyperclip
 import argparse
 from termcolor import colored
+import os
+import platform
+import shutil
+from pyfiglet import Figlet
+from cryptography.fernet import Fernet
 
 # Configuration
 PORT = 65432  # Port to use for communication
+MAX_CLIPBOARD_LENGTH = 500  # Maximum length of clipboard content to store/display | truncate
 
-# Store clipboard history(local)
+# Generate or use a pre-shared key for encryption
+ENCRYPTION_KEY = Fernet.generate_key()
+cipher_suite = Fernet(ENCRYPTION_KEY)
+
+# Store clipboard history (local)
 clipboard_history = []
 
 def handle_client(conn, addr):
@@ -15,15 +25,25 @@ def handle_client(conn, addr):
     global clipboard_history
     print(colored(f"[+] Connected by {addr}", 'green'))
     while True:
-        data = conn.recv(1024).decode()
-        if not data:
+        try:
+            encrypted_data = conn.recv(4096)
+            if not encrypted_data:
+                break
+            data = cipher_suite.decrypt(encrypted_data).decode()
+            if data == 'get_clipboard':
+                clipboard_content = pyperclip.paste()
+                # Truncate if the clipboard content is too long
+                if len(clipboard_content) > MAX_CLIPBOARD_LENGTH:
+                    clipboard_content = clipboard_content[:MAX_CLIPBOARD_LENGTH] + '... [truncated]'
+                clipboard_history.append(clipboard_content)
+                encrypted_clipboard = cipher_suite.encrypt(clipboard_content.encode())
+                conn.sendall(encrypted_clipboard)
+            else:
+                response = "Invalid command"
+                conn.sendall(cipher_suite.encrypt(response.encode()))
+        except Exception as e:
+            print(colored(f"[-] An error occurred with {addr}: {e}", 'red'))
             break
-        elif data == 'get_clipboard':
-            clipboard_content = pyperclip.paste()
-            clipboard_history.append(clipboard_content)
-            conn.sendall(clipboard_content.encode())
-        else:
-            conn.sendall(b"Invalid command")
     conn.close()
     print(colored(f"[-] Disconnected from {addr}", 'yellow'))
 
@@ -42,6 +62,22 @@ def server(local_ip, stop_event):
             except socket.timeout:
                 continue
 
+def clear_screen():
+    """Clears the terminal screen."""
+    if platform.system() == 'Windows':
+        os.system('cls')
+    else:
+        os.system('clear')
+
+def display_banner():
+    """Displays the 'ClipMate' banner."""
+    f = Figlet(font='slant')
+    banner = f.renderText('ClipMate')
+    terminal_size = shutil.get_terminal_size()
+    banner_lines = banner.split('\n')
+    centered_banner = '\n'.join(line.center(terminal_size.columns) for line in banner_lines)
+    print(colored(centered_banner, 'cyan'))
+
 def client(peer_ip):
     """Client that requests clipboard from the peer and allows interaction."""
     global clipboard_history
@@ -54,19 +90,33 @@ def client(peer_ip):
             command = input(colored("CPC > ", 'green')).strip()
 
             if command == 'help':
-                print(colored("\nAvailable commands:", 'cyan'))
-                print(colored("  show           - Retrieve and display the peer's clipboard content.", 'cyan'))
-                print(colored("  cp <number>    - Copy the specified clipboard entry to your local clipboard.", 'cyan'))
-                print(colored("  exit           - Exit the program.", 'cyan'))
-                print(colored("  help           - Display this help message.\n", 'cyan'))
+                print(colored("\n┌" + "─" * 70 + "┐", 'cyan'))
+                print(colored("│" + "Available Commands".center(70) + "│", 'cyan'))
+                print(colored("├" + "─" * 70 + "┤", 'cyan'))
+                print(colored("│" + "show           - Retrieve and display the peer's clipboard content.".ljust(70) + "│", 'cyan'))
+                print(colored("│" + "cp <number>    - Copy specified clipboard entry from local clipboard.".ljust(70) + "│", 'cyan'))
+                print(colored("│" + "exit           - Exit the program.".ljust(70) + "│", 'cyan'))
+                print(colored("│" + "help           - Display this help message.".ljust(70) + "│", 'cyan'))
+                print(colored("└" + "─" * 70 + "┘\n", 'cyan'))
 
             elif command == 'show':
-                client_socket.sendall(b'get_clipboard')
-                clipboard_content = client_socket.recv(1024).decode()
+                encrypted_command = cipher_suite.encrypt(command.encode())
+                client_socket.sendall(encrypted_command)
+                encrypted_clipboard = client_socket.recv(4096)
+                clipboard_content = cipher_suite.decrypt(encrypted_clipboard).decode()
                 clipboard_history.append(clipboard_content)
-                print(colored("\n[Clipboard History]:", 'magenta'))
+                print(colored("\n┌" + "─" * 70 + "┐", 'magenta'))
+                print(colored("│" + "[ Clipboard History ]".center(70) + "│", 'magenta'))
+                print(colored("├" + "─" * 70 + "┤", 'magenta'))
                 for idx, content in enumerate(clipboard_history, start=1):
-                    print(colored(f"{idx}. {content}", 'magenta'))
+                    content_lines = [content[i:i+66] for i in range(0, len(content), 66)]
+                    for line_num, line in enumerate(content_lines):
+                        if line_num == 0:
+                            line_prefix = f"{idx}. "
+                        else:
+                            line_prefix = "    "
+                        print(colored("│" + (line_prefix + line).ljust(70) + "│", 'magenta'))
+                print(colored("└" + "─" * 70 + "┘\n", 'magenta'))
 
             elif command.startswith('cp'):
                 try:
@@ -94,6 +144,12 @@ def client(peer_ip):
         print(colored(f"[-] An error occurred: {e}", 'red'))
 
 def main():
+    # Clear the terminal screen
+    clear_screen()
+
+    # Display the 'ClipMate' banner
+    display_banner()
+
     # Command-line argument parser
     parser = argparse.ArgumentParser(description="Clipboard Sharing App")
     parser.add_argument('--local-ip', type=str, required=True, help='Local IP address of this machine')
