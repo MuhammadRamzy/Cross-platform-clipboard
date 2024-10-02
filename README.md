@@ -34,7 +34,7 @@ To set up the project, follow these steps:
    git clone https://github.com/your-username/clipboard-sharing.git
    cd clipboard-sharing
 2. **Install required dependencies using the requirements.txt file**:
-    ``bash
+    ```bash
     pip install -r requirements.txt
 
 
@@ -44,16 +44,16 @@ To run the application, execute the script on both computers that need to share 
 ### Example Commands
 On PC 1:
 
-    ``bash
+    ```bash
     python clipboard_sharing.py --local-ip 192.168.1.101 --peer-ip 192.168.1.102
     
 On PC 2:
 
-    ``bash
+    ```bash
     python clipboard_sharing.py --local-ip 192.168.1.102 --peer-ip 192.168.1.101
     
-#### Available Commands
-    Once the application is running, you can enter the following commands in the terminal:
+### Available Commands
+Once the application is running, you can enter the following commands in the terminal:
 
-    show: Lists the clipboard content from the peer machine in a numbered format.
-    cp <number>: Copies the content of the specified clipboard entry (by its number) to the local clipboard.
+- show: Lists the clipboard content from the peer machine in a numbered format.
+- cp <number>: Copies the content of the specified clipboard entry (by its number) to the local clipboard.
