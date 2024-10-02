@@ -15,45 +15,48 @@ The application establishes a TCP connection between two PCs using their local I
 - **Copying specific clipboard entries** to the local clipboard for immediate use.
 
 ### Key Features
-- Bidirectional clipboard sharing.
-- Simple terminal commands for easy interaction.
-- Color-coded feedback for connection status.
+- Bidirectional clipboard sharing
+- Simple terminal commands for easy interaction
+- Color-coded feedback for connection status
 
 ## Installation
 
-To set up the project, follow these steps:
-
 ### Prerequisites
-- Python 3.x installed on both machines.
-- Internet connection for package installation.
+- Python 3.x installed on both machines
+- Internet connection for package installation
 
 ### Steps to Install
 
-1. **Clone the repository**:
+1. Clone the repository:
    ```bash
    git clone https://github.com/your-username/clipboard-sharing.git
    cd clipboard-sharing
-2. **Install required dependencies using the requirements.txt file**:
-    ```bash
-    pip install -r requirements.txt
+   ```
 
+2. Install required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### Usage
+## Usage
+
 To run the application, execute the script on both computers that need to share the clipboard. Each machine should specify its own local IP address and the peer's IP address.
 
 ### Example Commands
+
 On PC 1:
+```bash
+python clipboard_sharing.py --local-ip 192.168.1.101 --peer-ip 192.168.1.102
+```
 
-    ```bash
-    python clipboard_sharing.py --local-ip 192.168.1.101 --peer-ip 192.168.1.102
-    
 On PC 2:
+```bash
+python clipboard_sharing.py --local-ip 192.168.1.102 --peer-ip 192.168.1.101
+```
 
-    ```bash
-    python clipboard_sharing.py --local-ip 192.168.1.102 --peer-ip 192.168.1.101
-    
 ### Available Commands
+
 Once the application is running, you can enter the following commands in the terminal:
 
-- show: Lists the clipboard content from the peer machine in a numbered format.
-- cp <number>: Copies the content of the specified clipboard entry (by its number) to the local clipboard.
+- `show`: Lists the clipboard content from the peer machine in a numbered format.
+- `cp <number>`: Copies the content of the specified clipboard entry (by its number) to the local clipboard.
