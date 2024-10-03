@@ -9,7 +9,7 @@
 - **Cross-Platform**: Works on Windows, macOS, and Linux.
 - **Command-Line Interface**: Simple CLI for retrieving, viewing, and copying clipboard content.
 - **Easy Setup**: No complex configuration required—just share your local IP with a peer!
-
+0
 ## Installation
 
 ### Prerequisites

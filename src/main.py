@@ -10,8 +10,9 @@ import sys
 import time
 
 PORT = 65432
-
+BUFFER_SIZE = 4096  # Size of each chunk of file being sent
 clipboard_history = []
+download_directory = os.path.join(os.path.expanduser("~"), 'Downloads')
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -24,6 +25,43 @@ def get_local_ip():
         s.close()
     return ip
 
+def send_file(conn, file_path):
+    try:
+        if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
+            file_name = os.path.basename(file_path)
+            conn.sendall(f"SEND_FILE {file_name} {file_size}".encode())
+            
+            with open(file_path, 'rb') as file:
+                while True:
+                    bytes_read = file.read(BUFFER_SIZE)
+                    if not bytes_read:
+                        break
+                    conn.sendall(bytes_read)
+            print(colored(f"[+] File '{file_name}' sent successfully.", 'green'))
+        else:
+            conn.sendall(b"ERROR File does not exist.")
+            print(colored("[-] File not found.", 'red'))
+    except Exception as e:
+        print(colored(f"[-] Error sending file: {e}", 'red'))
+
+def receive_file(conn, file_name, file_size):
+    global download_directory
+    file_path = os.path.join(download_directory, file_name)
+
+    try:
+        with open(file_path, 'wb') as file:
+            total_received = 0
+            while total_received < file_size:
+                bytes_read = conn.recv(min(BUFFER_SIZE, file_size - total_received))
+                if not bytes_read:
+                    break
+                file.write(bytes_read)
+                total_received += len(bytes_read)
+        print(colored(f"[+] File received successfully: {file_path}", 'green'))
+    except Exception as e:
+        print(colored(f"[-] Error receiving file: {e}", 'red'))
+
 def handle_client(conn, addr):
     print(colored(f"[+] Connected by {addr}", 'green'))
     try:
@@ -32,15 +70,24 @@ def handle_client(conn, addr):
             if not data:
                 break
             command = data.decode()
-            if command == 'get_clipboard':
+
+            if command.startswith('get_clipboard'):
                 try:
                     clipboard_content = pyperclip.paste()
                 except Exception as e:
                     clipboard_content = f"Error accessing clipboard: {e}"
-                try:
-                    conn.sendall(clipboard_content.encode())
-                except Exception as e:
-                    print(colored(f"[-] Error sending data to {addr}: {e}", 'red'))
+                conn.sendall(clipboard_content.encode())
+
+            elif command.startswith('SEND_FILE'):
+                _, file_name, file_size = command.split()
+                file_size = int(file_size)
+                print(colored(f"\n[*] {addr} is sending a file: {file_name} ({file_size} bytes)", 'cyan'))
+                accept = input(colored("Do you want to accept the file? (yes/no): ", 'yellow')).strip().lower()
+                if accept == 'yes':
+                    conn.sendall(b"ACCEPT_FILE")
+                    receive_file(conn, file_name, file_size)
+                else:
+                    conn.sendall(b"DECLINE_FILE")
             else:
                 conn.sendall(b"Invalid command")
     except Exception as e:
@@ -84,7 +131,7 @@ def display_banner():
     print(colored(centered_banner, 'cyan'))
 
 def client(peer_ip):
-    global clipboard_history
+    global clipboard_history, download_directory
     try:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.settimeout(10.0)
@@ -100,6 +147,8 @@ def client(peer_ip):
                 print(colored("├" + "─" * 70 + "┤", 'cyan'))
                 print(colored("│" + "show           - Retrieve and display the peer's clipboard content.".ljust(70) + "│", 'cyan'))
                 print(colored("│" + "cp <number>    - Copy specified clipboard entry to local clipboard.".ljust(70) + "│", 'cyan'))
+                print(colored("│" + "sf <file_path> - Send a file to the peer.".ljust(70) + "│", 'cyan'))
+                print(colored("│" + "sf -set <path> - Set the download directory for incoming files.".ljust(70) + "│", 'cyan'))
                 print(colored("│" + "exit           - Exit the program.".ljust(70) + "│", 'cyan'))
                 print(colored("│" + "help           - Display this help message.".ljust(70) + "│", 'cyan'))
                 print(colored("└" + "─" * 70 + "┘\n", 'cyan'))
@@ -137,65 +186,67 @@ def client(peer_ip):
                     if 0 <= index < len(clipboard_history):
                         try:
                             pyperclip.copy(clipboard_history[index])
-                            print(colored(f"\n[+] Copied clipboard entry {number} to local clipboard.\n", 'green'))
+                            print(colored(f"[+] Copied entry {number} to local clipboard.\n", 'green'))
                         except Exception as e:
                             print(colored(f"[-] Error copying to clipboard: {e}\n", 'red'))
                     else:
-                        print(colored("[-] Invalid number. Please try again.\n", 'red'))
-                except ValueError:
-                    print(colored("[-] Invalid command format. Use 'cp <number>'.\n", 'red'))
-                except Exception as e:
-                    print(colored(f"[-] An error occurred: {e}\n", 'red'))
+                        print(colored("[-] Invalid clipboard entry number.\n", 'red'))
+                except (ValueError, IndexError):
+                    print(colored("[-] Usage: cp <number>\n", 'red'))
+
+            elif command.startswith('sf'):
+                if command.startswith('sf -set'):
+                    try:
+                        _, _, new_path = command.split(' ', 2)
+                        if os.path.isdir(new_path):
+                            download_directory = new_path
+                            print(colored(f"[+] Download directory set to: {download_directory}\n", 'green'))
+                        else:
+                            print(colored("[-] Invalid directory path.\n", 'red'))
+                    except ValueError:
+                        print(colored("[-] Usage: sf -set <path>\n", 'red'))
+
+                else:
+                    try:
+                        _, file_path = command.split(' ', 1)
+                        if os.path.exists(file_path):
+                            client_socket.sendall(f"sf {file_path}".encode())
+                            send_file(client_socket, file_path)
+                        else:
+                            print(colored("[-] File not found.\n", 'red'))
+                    except ValueError:
+                        print(colored("[-] Usage: sf <file_path>\n", 'red'))
 
             elif command == 'exit':
+                print(colored("\n[-] Exiting...", 'yellow'))
                 client_socket.close()
-                print(colored("\n[*] Exiting the program. Goodbye!", 'cyan'))
                 break
 
             else:
-                print(colored("[-] Unknown command. Type 'help' to see available commands.\n", 'yellow'))
+                print(colored("[-] Unknown command. Type 'help' for a list of commands.\n", 'red'))
 
-    except socket.timeout:
-        print(colored(f"[-] Connection timed out when connecting to {peer_ip}.", 'red'))
-    except ConnectionRefusedError:
-        print(colored(f"[-] Failed to connect to {peer_ip}. Is the server running?", 'red'))
     except Exception as e:
-        print(colored(f"[-] An error occurred: {e}", 'red'))
+        print(colored(f"[-] Connection error: {e}", 'red'))
     finally:
-        try:
-            client_socket.close()
-        except:
-            pass
-
-def main():
-    clear_screen()
-
-    display_banner()
-
-    local_ip = get_local_ip()
-    print(colored(f"[*] Your local IP address is {local_ip}", 'cyan'))
-
-    peer_ip = input(colored("Enter the peer's IP address: ", 'yellow')).strip()
-
-    try:
-        socket.inet_aton(peer_ip)
-    except socket.error:
-        print(colored("[-] Invalid IP address format.", 'red'))
-        sys.exit(1)
-
-    stop_event = threading.Event()
-
-    server_thread = threading.Thread(target=server, args=(local_ip, stop_event), daemon=True)
-    server_thread.start()
-
-    try:
-        time.sleep(0.5)
-        client(peer_ip)
-    except KeyboardInterrupt:
-        print(colored("\n[*] Keyboard interrupt received. Exiting.", 'cyan'))
-    finally:
-        stop_event.set()
-        server_thread.join()
+        client_socket.close()
 
 if __name__ == "__main__":
-    main()
+    stop_event = threading.Event()
+    try:
+        clear_screen()
+        display_banner()
+
+        local_ip = get_local_ip()
+        server_thread = threading.Thread(target=server, args=(local_ip, stop_event))
+        server_thread.start()
+
+        while True:
+            peer_ip = input(colored("\n[?] Enter peer's IP address to connect or type 'exit' to quit: ", 'yellow')).strip()
+            if peer_ip == 'exit':
+                break
+            client(peer_ip)
+
+    except KeyboardInterrupt:
+        print(colored("\n[-] Shutting down...", 'yellow'))
+        stop_event.set()
+        sys.exit(0)
