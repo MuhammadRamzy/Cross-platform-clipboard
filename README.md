@@ -91,6 +91,13 @@ Here's an example session of ClipMate in action:
    - After connecting, you will see the prompt `CPC >`, indicating that you can now interact with the peer's clipboard.
 
 ```bash
+                                           _________       __  ___      __
+                                          / ____/ (_)___  /  |/  /___ _/ /____
+                                         / /   / / / __ \/ /|_/ / __ `/ __/ _ \
+                                        / /___/ / / /_/ / /  / / /_/ / /_/  __/
+                                        \____/_/_/ .___/_/  /_/\__,_/\__/\___/
+                                                /_/
+
 [*] Your local IP address is 192.168.1.100
 Enter the peer's IP address: 192.168.1.101
 
