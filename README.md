@@ -15,17 +15,8 @@
 ### Prerequisites
 
 Make sure you have Python 3.6+ installed on your system.
-
-### 1. Clone the Repository
-
-To get started, clone the repository to your local machine:
-
-```bash
-git clone https://github.com/MuhammadRamzy/Cross-platform-clipboard.git
-cd Cross-platform-clipboard
-```
-
-### 2. Install Required Libraries
+--- 
+### Installation 
 
 You can easily install ClipMate from PyPI:
 
@@ -37,7 +28,7 @@ Once installed, you can run the program by typing:
 ```bash
 clipmate
 ```
-
+---
 Once ClipMate is running, it will start listening on the default port (`65432`) for incoming clipboard requests.
 
 ## Usage Instructions
