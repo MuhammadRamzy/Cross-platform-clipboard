@@ -9,17 +9,13 @@ from pyfiglet import Figlet
 import sys
 import time
 
-# Configuration
-PORT = 65432  # Port to use for communication
+PORT = 65432
 
-# Store clipboard history (local)
 clipboard_history = []
 
 def get_local_ip():
-    """Fetches the local IP address of this machine."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        # Doesn't need to reach the address, just to get the local IP
         s.connect(('8.8.8.8', 80))
         ip = s.getsockname()[0]
     except Exception:
@@ -29,7 +25,6 @@ def get_local_ip():
     return ip
 
 def handle_client(conn, addr):
-    """Server handler to respond to clipboard requests."""
     print(colored(f"[+] Connected by {addr}", 'green'))
     try:
         while True:
@@ -55,7 +50,6 @@ def handle_client(conn, addr):
         print(colored(f"[-] Disconnected from {addr}", 'yellow'))
 
 def server(local_ip, stop_event):
-    """Runs a server to listen for clipboard requests."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         try:
             server_socket.bind((local_ip, PORT))
@@ -76,14 +70,12 @@ def server(local_ip, stop_event):
             sys.exit(1)
 
 def clear_screen():
-    """Clears the terminal screen."""
     if platform.system() == 'Windows':
         os.system('cls')
     else:
         os.system('clear')
 
 def display_banner():
-    """Displays the 'ClipMate' banner."""
     f = Figlet(font='slant')
     banner = f.renderText('ClipMate')
     terminal_size = shutil.get_terminal_size()
@@ -92,11 +84,10 @@ def display_banner():
     print(colored(centered_banner, 'cyan'))
 
 def client(peer_ip):
-    """Client that requests clipboard from the peer and allows interaction."""
     global clipboard_history
     try:
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.settimeout(10.0)  # Set timeout for connection attempt
+        client_socket.settimeout(10.0)
         client_socket.connect((peer_ip, PORT))
         print(colored(f"\n[+] Connected to {peer_ip}", 'green'))
 
@@ -123,7 +114,6 @@ def client(peer_ip):
                     else:
                         print(colored("\n[!] Clipboard content hasn't changed since last fetch.\n", 'yellow'))
 
-                    # Display clipboard history (truncate content to 100 characters)
                     print(colored("\n┌" + "─" * 70 + "┐", 'magenta'))
                     print(colored("│" + "[ Clipboard History ]".center(70) + "│", 'magenta'))
                     print(colored("├" + "─" * 70 + "┤", 'magenta'))
@@ -178,37 +168,28 @@ def client(peer_ip):
             pass
 
 def main():
-    # Clear the terminal screen
     clear_screen()
 
-    # Display the 'ClipMate' banner
     display_banner()
 
-    # Fetch the local IP address
     local_ip = get_local_ip()
     print(colored(f"[*] Your local IP address is {local_ip}", 'cyan'))
 
-    # Prompt for the peer's IP address
     peer_ip = input(colored("Enter the peer's IP address: ", 'yellow')).strip()
 
-    # Validate the IP address format
     try:
         socket.inet_aton(peer_ip)
     except socket.error:
         print(colored("[-] Invalid IP address format.", 'red'))
         sys.exit(1)
 
-    # Event to signal server shutdown
     stop_event = threading.Event()
 
-    # Start the server in a separate thread
     server_thread = threading.Thread(target=server, args=(local_ip, stop_event), daemon=True)
     server_thread.start()
 
     try:
-        # Give the server a moment to start
         time.sleep(0.5)
-        # Run the client part
         client(peer_ip)
     except KeyboardInterrupt:
         print(colored("\n[*] Keyboard interrupt received. Exiting.", 'cyan'))
