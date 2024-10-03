@@ -1,62 +1,156 @@
-# Two-Way Clipboard Sharing Application
+# ClipMate
 
-## Introduction
+**ClipMate** is a cross-platform clipboard-sharing tool that allows users on the same network to share and access clipboard content in real time. With ClipMate, you can easily view and copy clipboard entries from other computers on the network, making collaboration seamless.
 
-The Two-Way Clipboard Sharing Application allows users to share clipboard content seamlessly between two computers connected to the same local network. This tool is especially useful for collaborative tasks, enabling easy transfer of text snippets, URLs, or any other clipboard data without the need for email or other transfer methods.
+## Features
 
-## Goal
-
-The primary goal of this application is to facilitate efficient clipboard sharing between two machines, providing a straightforward command-line interface that allows users to view, copy, and manage clipboard content in real-time.
-
-## How It Works
-
-The application establishes a TCP connection between two PCs using their local IP addresses. Once connected, users can send commands to request clipboard content from the peer machine. The application supports two main operations:
-- **Requesting clipboard content** from the other computer.
-- **Copying specific clipboard entries** to the local clipboard for immediate use.
-
-### Key Features
-- Bidirectional clipboard sharing
-- Simple terminal commands for easy interaction
-- Color-coded feedback for connection status
+- **Real-time Clipboard Sharing**: Fetch clipboard content from peers on the same local network.
+- **Clipboard History**: Maintain a local history of clipboard entries retrieved from peers.
+- **Cross-Platform**: Works on Windows, macOS, and Linux.
+- **Command-Line Interface**: Simple CLI for retrieving, viewing, and copying clipboard content.
+- **Easy Setup**: No complex configuration required—just share your local IP with a peer!
 
 ## Installation
 
 ### Prerequisites
-- Python 3.x installed on both machines
-- Internet connection for package installation
 
-### Steps to Install
+Make sure you have Python 3.6+ installed on your system.
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/clipboard-sharing.git
-   cd clipboard-sharing
-   ```
+### 1. Clone the Repository
 
-2. Install required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+To get started, clone the repository to your local machine:
 
-## Usage
-
-To run the application, execute the script on both computers that need to share the clipboard. Each machine should specify its own local IP address and the peer's IP address.
-
-### Example Commands
-
-On PC 1:
 ```bash
-python clipboard_sharing.py --local-ip 192.168.1.101 --peer-ip 192.168.1.102
+git clone https://github.com/MuhammadRamzy/Cross-platform-clipboard.git
+cd Cross-platform-clipboard
 ```
 
-On PC 2:
+### 2. Install Required Libraries
+
+Install the necessary dependencies by running:
+
 ```bash
-python clipboard_sharing.py --local-ip 192.168.1.102 --peer-ip 192.168.1.101
+pip install -r requirements.txt
 ```
 
-### Available Commands
+This will install the following Python packages:
+- `pyperclip`: For clipboard access and manipulation.
+- `termcolor`: For colored terminal output.
+- `pyfiglet`: For generating a fancy text banner.
 
-Once the application is running, you can enter the following commands in the terminal:
+### 3. Running ClipMate
 
-- `show`: Lists the clipboard content from the peer machine in a numbered format.
-- `cp <number>`: Copies the content of the specified clipboard entry (by its number) to the local clipboard.
+To start ClipMate, simply run:
+
+```bash
+python clipmate.py
+```
+
+Once ClipMate is running, it will start listening on the default port (`65432`) for incoming clipboard requests.
+
+## Usage Instructions
+
+### Local Network Setup
+
+ClipMate is designed to work within the same **local network** (LAN). This means both computers sharing the clipboard must be connected to the same Wi-Fi network or connected via an Ethernet cable within the same network.
+
+### Starting a Session
+
+1. **Start ClipMate on Both Machines**: 
+   - Run `clipmate.py` on both your machine and the peer machine.
+   - The peer (the person whose clipboard you want to access) should note their local IP address, displayed by ClipMate when it starts.
+   - **Example**: `[*] Your local IP address is 192.168.1.100`.
+
+2. **Enter the Peer’s IP**: 
+   - On your machine, you’ll be prompted to enter the IP address of the peer machine.
+   - **Example**: Enter `192.168.1.101` if that is the peer's IP.
+
+3. **Retrieve Clipboard**: 
+   - After entering the peer's IP, you will be able to interact with their clipboard using simple commands.
+
+### Commands
+
+Once connected, you can use the following commands:
+
+- **show**: Fetch and display the current clipboard content from the peer.
+- **cp \<number\>**: Copy a specific clipboard entry from the local history to your clipboard.
+- **exit**: Exit the program and disconnect from the peer.
+- **help**: Display a list of available commands.
+
+### Example Session
+
+Here's an example session of ClipMate in action:
+
+1. **Peer (Server) Machine**:
+   - Start ClipMate by running `python clipmate.py`. It will display the local IP address, e.g., `192.168.1.101`.
+   - Wait for the other machine to connect.
+
+2. **Your (Client) Machine**:
+   - Start ClipMate by running `python clipmate.py`.
+   - When prompted, enter the peer's IP address: `192.168.1.101`.
+   - After connecting, you will see the prompt `CPC >`, indicating that you can now interact with the peer's clipboard.
+
+```bash
+[*] Your local IP address is 192.168.1.100
+Enter the peer's IP address: 192.168.1.101
+
+[+] Connected to 192.168.1.101
+CPC > show
+
+[+] New clipboard content added to history.
+
+┌──────────────────────────────────────────────────────────────────────┐
+│                         [ Clipboard History ]                        │
+├──────────────────────────────────────────────────────────────────────┤
+│ 1. This is the peer's clipboard content!                             │
+│ 2. Here’s another clipboard entry from the peer.                     │
+└──────────────────────────────────────────────────────────────────────┘
+
+CPC > cp 1
+[+] Copied clipboard entry 1 to local clipboard.
+
+CPC > exit
+[*] Exiting the program. Goodbye!
+```
+
+In this example:
+- The `show` command retrieves the clipboard content from the peer and adds it to the local history.
+- The `cp 1` command copies the first entry from the clipboard history to the local clipboard.
+
+### Important Notes
+
+- Both machines must be connected to the same **local network**.
+- If you encounter connection issues, ensure that no firewall or security software is blocking port `65432`.
+
+## Demo Walkthrough
+
+1. **Setup**: 
+   - Both you and your peer must be connected to the same local network.
+   - Run `clipmate.py` on both machines.
+   
+2. **Get Local IP**: 
+   - Each machine will display its local IP address (e.g., `192.168.1.x`).
+   
+3. **Connect to Peer**: 
+   - On your machine, enter the peer's local IP address when prompted.
+
+4. **Fetch Clipboard**: 
+   - Use the `show` command to retrieve clipboard content from the peer.
+   
+5. **Copy Content Locally**: 
+   - Use `cp <number>` to copy clipboard content from the history to your local clipboard.
+
+## Troubleshooting
+
+- **Connection Refused**: Ensure that the peer’s firewall isn’t blocking the connection on port `65432` and that both machines are on the same local network.
+- **Clipboard Not Accessible**: If you receive clipboard access errors, verify that `pyperclip` is installed and working correctly on your system.
+
+## Contributing
+
+Contributions are welcome! Feel free to fork the repository, submit pull requests, or open issues to suggest new features or report bugs.
+
+## License
+
+This project is licensed under the MIT License.
+
+---
