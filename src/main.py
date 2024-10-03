@@ -8,6 +8,7 @@ import shutil
 from pyfiglet import Figlet
 import sys
 import time
+from tqdm import tqdm  # For progress bar
 
 PORT = 65432
 BUFFER_SIZE = 4096  # Size of each chunk of file being sent
@@ -31,13 +32,18 @@ def send_file(conn, file_path):
             file_size = os.path.getsize(file_path)
             file_name = os.path.basename(file_path)
             conn.sendall(f"SEND_FILE {file_name} {file_size}".encode())
-            
-            with open(file_path, 'rb') as file:
+
+            with open(file_path, 'rb') as file, tqdm(
+                total=file_size, unit='B', unit_scale=True, unit_divisor=1024, 
+                desc=f"Sending {file_name}", ncols=80
+            ) as progress_bar:
                 while True:
                     bytes_read = file.read(BUFFER_SIZE)
                     if not bytes_read:
                         break
                     conn.sendall(bytes_read)
+                    progress_bar.update(len(bytes_read))
+
             print(colored(f"[+] File '{file_name}' sent successfully.", 'green'))
         else:
             conn.sendall(b"ERROR File does not exist.")
@@ -50,7 +56,10 @@ def receive_file(conn, file_name, file_size):
     file_path = os.path.join(download_directory, file_name)
 
     try:
-        with open(file_path, 'wb') as file:
+        with open(file_path, 'wb') as file, tqdm(
+            total=file_size, unit='B', unit_scale=True, unit_divisor=1024, 
+            desc=f"Receiving {file_name}", ncols=80
+        ) as progress_bar:
             total_received = 0
             while total_received < file_size:
                 bytes_read = conn.recv(min(BUFFER_SIZE, file_size - total_received))
@@ -58,6 +67,8 @@ def receive_file(conn, file_name, file_size):
                     break
                 file.write(bytes_read)
                 total_received += len(bytes_read)
+                progress_bar.update(len(bytes_read))
+
         print(colored(f"[+] File received successfully: {file_path}", 'green'))
     except Exception as e:
         print(colored(f"[-] Error receiving file: {e}", 'red'))
