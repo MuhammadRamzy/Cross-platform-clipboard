@@ -15,8 +15,9 @@
 ### Prerequisites
 
 Make sure you have Python 3.6+ installed on your system.
---- 
+
 ### Installation 
+--- 
 
 You can easily install ClipMate from PyPI:
 
