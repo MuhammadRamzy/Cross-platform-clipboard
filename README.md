@@ -27,23 +27,15 @@ cd Cross-platform-clipboard
 
 ### 2. Install Required Libraries
 
-Install the necessary dependencies by running:
+You can easily install ClipMate from PyPI:
 
 ```bash
-pip install -r requirements.txt
+pip install clipmate
 ```
-
-This will install the following Python packages:
-- `pyperclip`: For clipboard access and manipulation.
-- `termcolor`: For colored terminal output.
-- `pyfiglet`: For generating a fancy text banner.
-
-### 3. Running ClipMate
-
-To start ClipMate, simply run:
+Once installed, you can run the program by typing:
 
 ```bash
-python clipmate.py
+clipmate
 ```
 
 Once ClipMate is running, it will start listening on the default port (`65432`) for incoming clipboard requests.
